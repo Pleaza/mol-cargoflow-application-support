@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+cargo_flow.db
+.env
+.venv/
+venv/
