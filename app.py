@@ -25,7 +25,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# -------------------- STYLE --------------------
 st.markdown("""
 <style>
 .block-container{padding-top:1.2rem;padding-bottom:2rem}
@@ -35,6 +34,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
+# =========================================================
+# MAIN APPLICATION DATABASE
+# =========================================================
 
 @st.cache_resource
 def get_connection():
@@ -54,7 +57,13 @@ def esc(s):
 
 
 def count(sql, params=()):
-    return int(pd.read_sql_query(sql, conn, params=params).iloc[0, 0] or 0)
+    return int(
+        pd.read_sql_query(
+            sql,
+            conn,
+            params=params
+        ).iloc[0, 0] or 0
+    )
 
 
 def audit(kind, ref, action, details):
@@ -69,7 +78,13 @@ def audit(kind, ref, action, details):
         )
         VALUES(?,?,?,?,?)
         """,
-        (kind, ref, action, details, now())
+        (
+            kind,
+            ref,
+            action,
+            details,
+            now()
+        )
     )
 
 
@@ -260,6 +275,18 @@ def init_db():
         )
         """,
 
+        "sql_query_history": """
+        CREATE TABLE IF NOT EXISTS sql_query_history(
+            query_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            related_incident TEXT,
+            target_table TEXT,
+            sql_query TEXT,
+            query_status TEXT,
+            rows_returned INTEGER,
+            executed_at TEXT
+        )
+        """,
+
         "incident_status_history": """
         CREATE TABLE IF NOT EXISTS incident_status_history(
             history_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -390,7 +417,6 @@ def init_db():
     for sql in tables.values():
         cursor.execute(sql)
 
-    # Migration safety for existing DB
     for table, col in [
         ("alert_investigations", "incident_id"),
         ("releases", "incident_id")
@@ -494,78 +520,14 @@ if count("SELECT COUNT(*) FROM shipments") == 0:
     cursor.executemany(
         "INSERT INTO shipments VALUES(?,?,?,?,?,?,?)",
         [
-            (
-                "SHP1001",
-                "ABC Logistics",
-                "Kolkata",
-                "Singapore",
-                "In Transit",
-                "Paid",
-                85000
-            ),
-            (
-                "SHP1002",
-                "Global Traders",
-                "Mumbai",
-                "Dubai",
-                "Booked",
-                "Paid",
-                62000
-            ),
-            (
-                "SHP1003",
-                "Ocean Exports",
-                "Chennai",
-                "London",
-                "Payment Failed",
-                "Failed",
-                91000
-            ),
-            (
-                "SHP1004",
-                "Eastern Cargo",
-                "Kolkata",
-                "Singapore",
-                "Delivered",
-                "Paid",
-                45000
-            ),
-            (
-                "SHP1005",
-                "Prime Imports",
-                "Delhi",
-                "Rotterdam",
-                "Booked",
-                "Pending",
-                73000
-            ),
-            (
-                "SHP1006",
-                "Blue Ocean Ltd",
-                "Mumbai",
-                "Hamburg",
-                "In Transit",
-                "Paid",
-                56000
-            ),
-            (
-                "SHP1007",
-                "SeaBridge Corp",
-                "Kolkata",
-                "Dubai",
-                "Payment Failed",
-                "Failed",
-                68000
-            ),
-            (
-                "SHP1008",
-                "Global Traders",
-                "Chennai",
-                "Singapore",
-                "Booked",
-                "Paid",
-                52000
-            )
+            ("SHP1001","ABC Logistics","Kolkata","Singapore","In Transit","Paid",85000),
+            ("SHP1002","Global Traders","Mumbai","Dubai","Booked","Paid",62000),
+            ("SHP1003","Ocean Exports","Chennai","London","Payment Failed","Failed",91000),
+            ("SHP1004","Eastern Cargo","Kolkata","Singapore","Delivered","Paid",45000),
+            ("SHP1005","Prime Imports","Delhi","Rotterdam","Booked","Pending",73000),
+            ("SHP1006","Blue Ocean Ltd","Mumbai","Hamburg","In Transit","Paid",56000),
+            ("SHP1007","SeaBridge Corp","Kolkata","Dubai","Payment Failed","Failed",68000),
+            ("SHP1008","Global Traders","Chennai","Singapore","Booked","Paid",52000)
         ]
     )
 
@@ -634,9 +596,7 @@ alerts_df = pd.DataFrame(
 # =========================================================
 
 st.sidebar.title("🚢 MOL CargoFlow")
-st.sidebar.caption(
-    "Application Support Operations Portal"
-)
+st.sidebar.caption("Application Support Operations Portal")
 
 menu = st.sidebar.radio(
     "Navigation",
@@ -659,17 +619,10 @@ menu = st.sidebar.radio(
 )
 
 st.sidebar.divider()
-
-st.sidebar.caption(
-    f"IST: {now()}"
-)
-
-st.sidebar.caption(
-    "SQLite • Persistent Data • Audit Enabled"
-)
+st.sidebar.caption(f"IST: {now()}")
+st.sidebar.caption("SQLite • Persistent Data • Audit Enabled")
 
 st.title("🚢 MOL CargoFlow")
-
 st.caption(
     "Shipping & Logistics Application Support Simulation • Global Support Team"
 )
@@ -696,36 +649,15 @@ def dashboard():
         "WHERE status NOT IN ('Completed','Closed')"
     )
 
-    alerts = int(
-        (alerts_df.Status != "Resolved").sum()
-    )
+    alerts = int((alerts_df.Status != "Resolved").sum())
 
     c1, c2, c3, c4, c5 = st.columns(5)
 
-    c1.metric(
-        "Application",
-        "🟢 UP"
-    )
-
-    c2.metric(
-        "Active Incidents",
-        active
-    )
-
-    c3.metric(
-        "Open Requests",
-        open_sr
-    )
-
-    c4.metric(
-        "Active Alerts",
-        alerts
-    )
-
-    c5.metric(
-        "Open Tasks",
-        open_tasks
-    )
+    c1.metric("Application", "🟢 UP")
+    c2.metric("Active Incidents", active)
+    c3.metric("Open Requests", open_sr)
+    c4.metric("Active Alerts", alerts)
+    c5.metric("Open Tasks", open_tasks)
 
     st.divider()
 
@@ -733,17 +665,9 @@ def dashboard():
 
     a, b, c = st.columns(3)
 
-    a.success(
-        "🟢 Booking Service\n\nOperational"
-    )
-
-    b.success(
-        "🟢 Tracking Service\n\nOperational"
-    )
-
-    c.warning(
-        "🟡 Payment Service\n\nDegraded Performance"
-    )
+    a.success("🟢 Booking Service\n\nOperational")
+    b.success("🟢 Tracking Service\n\nOperational")
+    c.warning("🟡 Payment Service\n\nDegraded Performance")
 
     st.subheader("🚨 Current Support Queue")
 
@@ -762,11 +686,7 @@ def dashboard():
         conn
     )
 
-    st.dataframe(
-        q,
-        use_container_width=True,
-        hide_index=True
-    )
+    st.dataframe(q, use_container_width=True, hide_index=True)
 
     st.subheader("🔔 Alert Watchlist")
 
@@ -792,14 +712,9 @@ def dashboard():
         conn
     )
 
-    st.dataframe(
-        act,
-        use_container_width=True,
-        hide_index=True
-    )
+    st.dataframe(act, use_container_width=True, hide_index=True)
 
-
-# =========================================================
+    # =========================================================
 # INCIDENT MANAGEMENT
 # =========================================================
 
@@ -807,10 +722,7 @@ def incidents():
 
     st.header("🚨 Incident Management")
 
-    with st.form(
-        "incident_form",
-        clear_on_submit=True
-    ):
+    with st.form("incident_form", clear_on_submit=True):
 
         c1, c2 = st.columns(2)
 
@@ -820,14 +732,12 @@ def incidents():
                 "Incident ID",
                 placeholder="Example: INC-1006"
             )
-
             iid_e = st.empty()
 
             sev = st.selectbox(
                 "Severity",
                 ["Select Severity"] + list(SLA_TARGETS)
             )
-
             sev_e = st.empty()
 
             app = st.selectbox(
@@ -843,7 +753,6 @@ def incidents():
                     "Database"
                 ]
             )
-
             app_e = st.empty()
 
             status = st.selectbox(
@@ -858,7 +767,6 @@ def incidents():
                     "Closed"
                 ]
             )
-
             status_e = st.empty()
 
         with c2:
@@ -874,21 +782,18 @@ def incidents():
                     "System Support"
                 ]
             )
-
             team_e = st.empty()
 
             desc = st.text_area(
                 "Incident Description",
                 placeholder="Describe the production issue..."
             )
-
             desc_e = st.empty()
 
             impact = st.text_area(
                 "Business Impact",
                 placeholder="Describe operational/user impact..."
             )
-
             impact_e = st.empty()
 
         submit = st.form_submit_button(
@@ -906,11 +811,7 @@ def incidents():
         ]:
 
             if not esc(val):
-
-                ph.error(
-                    "⚠ This field is required."
-                )
-
+                ph.error("⚠ This field is required.")
                 errs = True
 
         for val, ph, msg in [
@@ -921,11 +822,7 @@ def incidents():
         ]:
 
             if val.startswith("Select"):
-
-                ph.error(
-                    f"⚠ Please select {msg}."
-                )
-
+                ph.error(f"⚠ Please select {msg}.")
                 errs = True
 
         if not errs:
@@ -947,11 +844,7 @@ def incidents():
                     )
                 )
 
-                ensure_sla(
-                    esc(iid),
-                    sev,
-                    t
-                )
+                ensure_sla(esc(iid), sev, t)
 
                 audit(
                     "Incident",
@@ -971,7 +864,6 @@ def incidents():
             except sqlite3.IntegrityError:
 
                 conn.rollback()
-
                 iid_e.error(
                     f"⚠ Incident ID '{esc(iid)}' already exists."
                 )
@@ -979,12 +871,9 @@ def incidents():
             except Exception as e:
 
                 conn.rollback()
-
                 st.error(str(e))
 
-    st.subheader(
-        "🔄 Status Update / Resolution"
-    )
+    st.subheader("🔄 Status Update / Resolution")
 
     opts = incident_options()
 
@@ -997,8 +886,7 @@ def incidents():
     if selected != "Select Incident":
 
         r = pd.read_sql_query(
-            "SELECT * FROM incidents "
-            "WHERE incident_id=?",
+            "SELECT * FROM incidents WHERE incident_id=?",
             conn,
             params=(selected,)
         ).iloc[0]
@@ -1013,19 +901,10 @@ def incidents():
                 f"{r.assigned_team}"
             )
 
-            st.write(
-                f"**Description:** {r.description}"
-            )
+            st.write(f"**Description:** {r.description}")
+            st.write(f"**Business Impact:** {r.business_impact}")
 
-            st.write(
-                f"**Business Impact:** "
-                f"{r.business_impact}"
-            )
-
-        with st.form(
-            "status_form",
-            clear_on_submit=True
-        ):
+        with st.form("status_form", clear_on_submit=True):
 
             ns = st.selectbox(
                 "New Status",
@@ -1046,14 +925,12 @@ def incidents():
                 "Updated By",
                 placeholder="Application Support"
             )
-
             by_e = st.empty()
 
             notes = st.text_area(
                 "Status Update / Resolution Notes",
                 placeholder="Document action, investigation or resolution..."
             )
-
             notes_e = st.empty()
 
             go = st.form_submit_button(
@@ -1065,35 +942,23 @@ def incidents():
             bad = False
 
             if ns.startswith("Select"):
-
-                ns_e.error(
-                    "⚠ Please select a new status."
-                )
-
+                ns_e.error("⚠ Please select a new status.")
                 bad = True
 
             if not esc(by):
-
-                by_e.error(
-                    "⚠ Updated By is required."
-                )
-
+                by_e.error("⚠ Updated By is required.")
                 bad = True
 
             if not esc(notes):
-
                 notes_e.error(
                     "⚠ Status Update / Resolution Notes are required."
                 )
-
                 bad = True
 
             if ns == r.status:
-
                 ns_e.error(
                     f"⚠ Incident is already '{r.status}'."
                 )
-
                 bad = True
 
             if not bad:
@@ -1103,8 +968,7 @@ def incidents():
                     t = now()
 
                     cursor.execute(
-                        "UPDATE incidents SET status=? "
-                        "WHERE incident_id=?",
+                        "UPDATE incidents SET status=? WHERE incident_id=?",
                         (ns, selected)
                     )
 
@@ -1130,10 +994,7 @@ def incidents():
                         )
                     )
 
-                    ensure_sla(
-                        selected,
-                        r.severity
-                    )
+                    ensure_sla(selected, r.severity)
 
                     cursor.execute(
                         """
@@ -1160,8 +1021,7 @@ def incidents():
                     )
 
                     s = pd.read_sql_query(
-                        "SELECT * FROM incident_sla "
-                        "WHERE incident_id=?",
+                        "SELECT * FROM incident_sla WHERE incident_id=?",
                         conn,
                         params=(selected,)
                     ).iloc[0]
@@ -1172,11 +1032,7 @@ def incidents():
                         int(s.sla_target_minutes)
                     )
 
-                    er = (
-                        "Yes"
-                        if ss == "SLA Breached"
-                        else "No"
-                    )
+                    er = "Yes" if ss == "SLA Breached" else "No"
 
                     lvl = (
                         get_escalation_level(r.severity)
@@ -1223,7 +1079,6 @@ def incidents():
                 except Exception as e:
 
                     conn.rollback()
-
                     st.error(str(e))
 
     st.subheader("📋 Incident History")
@@ -1244,11 +1099,7 @@ def incidents():
         conn
     )
 
-    st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True
-    )
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
     st.subheader("📜 Status History")
 
@@ -1267,11 +1118,7 @@ def incidents():
         conn
     )
 
-    st.dataframe(
-        h,
-        use_container_width=True,
-        hide_index=True
-    )
+    st.dataframe(h, use_container_width=True, hide_index=True)
 
 
 # =========================================================
@@ -1280,9 +1127,7 @@ def incidents():
 
 def alerts():
 
-    st.header(
-        "🔔 Alert Monitoring & Investigation"
-    )
+    st.header("🔔 Alert Monitoring & Investigation")
 
     st.write(
         "Monitor production alerts, document investigation "
@@ -1295,30 +1140,24 @@ def alerts():
         hide_index=True
     )
 
-    with st.form(
-        "alert_form",
-        clear_on_submit=True
-    ):
+    with st.form("alert_form", clear_on_submit=True):
 
         aid = st.selectbox(
             "Select Alert",
             ["Select Alert"] + alerts_df["Alert ID"].tolist()
         )
-
         aid_e = st.empty()
 
         inc = st.selectbox(
             "Related Incident",
             incident_options()
         )
-
         inc_e = st.empty()
 
         notes = st.text_area(
             "Investigation Notes",
             placeholder="Check logs, API metrics, DB connections, error patterns..."
         )
-
         notes_e = st.empty()
 
         action = st.selectbox(
@@ -1334,7 +1173,6 @@ def alerts():
                 "Monitor after corrective action"
             ]
         )
-
         action_e = st.empty()
 
         save = st.form_submit_button(
@@ -1352,19 +1190,13 @@ def alerts():
         ]:
 
             if val.startswith("Select"):
-
-                ph.error(
-                    f"⚠ Please select {msg}."
-                )
-
+                ph.error(f"⚠ Please select {msg}.")
                 bad = True
 
         if not esc(notes):
-
             notes_e.error(
                 "⚠ Investigation Notes are required."
             )
-
             bad = True
 
         if not bad:
@@ -1417,7 +1249,6 @@ def alerts():
             except Exception as e:
 
                 conn.rollback()
-
                 st.error(str(e))
 
     st.subheader("📋 Investigation History")
@@ -1446,140 +1277,913 @@ def alerts():
 
 
 # =========================================================
-# SQL & DATABASE TROUBLESHOOTING
+# WRITABLE SQL PRACTICE DATABASE
 # =========================================================
+
+def get_sql_practice_connection():
+
+    if "sql_practice_conn" not in st.session_state:
+
+        st.session_state.sql_practice_conn = sqlite3.connect(
+            "mol_sql_practice.db",
+            check_same_thread=False
+        )
+
+    return st.session_state.sql_practice_conn
+
+
+def init_sql_practice_db(practice_conn):
+
+    pc = practice_conn.cursor()
+
+    pc.execute(
+        """
+        CREATE TABLE IF NOT EXISTS employees(
+            employee_id INTEGER PRIMARY KEY,
+            employee_name TEXT,
+            department TEXT,
+            city TEXT,
+            salary REAL,
+            status TEXT
+        )
+        """
+    )
+
+    pc.execute(
+        """
+        CREATE TABLE IF NOT EXISTS customers(
+            customer_id INTEGER PRIMARY KEY,
+            customer_name TEXT,
+            city TEXT,
+            customer_type TEXT
+        )
+        """
+    )
+
+    pc.execute(
+        """
+        CREATE TABLE IF NOT EXISTS shipments(
+            shipment_id TEXT PRIMARY KEY,
+            customer_id INTEGER,
+            origin TEXT,
+            destination TEXT,
+            status TEXT,
+            payment_status TEXT,
+            amount REAL
+        )
+        """
+    )
+
+    pc.execute(
+        """
+        CREATE TABLE IF NOT EXISTS incidents(
+            incident_id TEXT PRIMARY KEY,
+            severity TEXT,
+            application TEXT,
+            status TEXT,
+            assigned_team TEXT,
+            description TEXT
+        )
+        """
+    )
+
+    pc.execute(
+        """
+        CREATE TABLE IF NOT EXISTS service_requests(
+            request_id TEXT PRIMARY KEY,
+            requested_by TEXT,
+            request_type TEXT,
+            priority TEXT,
+            status TEXT,
+            assigned_team TEXT
+        )
+        """
+    )
+
+    practice_conn.commit()
+
+    if pc.execute(
+        "SELECT COUNT(*) FROM employees"
+    ).fetchone()[0] == 0:
+
+        pc.executemany(
+            """
+            INSERT INTO employees
+            VALUES(?,?,?,?,?,?)
+            """,
+            [
+                (101,"Arjun Sen","Support","Kolkata",55000,"Active"),
+                (102,"Priya Das","QA","Kolkata",62000,"Active"),
+                (103,"Rahul Roy","Development","Mumbai",78000,"Active"),
+                (104,"Sneha Paul","Database","Delhi",72000,"Active"),
+                (105,"Amit Sharma","Support","Chennai",48000,"Inactive"),
+                (106,"Neha Ghosh","QA","Kolkata",68000,"Active")
+            ]
+        )
+
+    if pc.execute(
+        "SELECT COUNT(*) FROM customers"
+    ).fetchone()[0] == 0:
+
+        pc.executemany(
+            """
+            INSERT INTO customers
+            VALUES(?,?,?,?)
+            """,
+            [
+                (1,"ABC Logistics","Kolkata","Enterprise"),
+                (2,"Global Traders","Mumbai","Enterprise"),
+                (3,"Ocean Exports","Chennai","SMB"),
+                (4,"Eastern Cargo","Kolkata","SMB"),
+                (5,"Prime Imports","Delhi","Enterprise")
+            ]
+        )
+
+    if pc.execute(
+        "SELECT COUNT(*) FROM shipments"
+    ).fetchone()[0] == 0:
+
+        pc.executemany(
+            """
+            INSERT INTO shipments
+            VALUES(?,?,?,?,?,?,?)
+            """,
+            [
+                ("SHP1001",1,"Kolkata","Singapore","In Transit","Paid",85000),
+                ("SHP1002",2,"Mumbai","Dubai","Booked","Paid",62000),
+                ("SHP1003",3,"Chennai","London","Payment Failed","Failed",91000),
+                ("SHP1004",4,"Kolkata","Singapore","Delivered","Paid",45000),
+                ("SHP1005",5,"Delhi","Rotterdam","Booked","Pending",73000),
+                ("SHP1006",2,"Mumbai","Hamburg","In Transit","Paid",56000),
+                ("SHP1007",4,"Kolkata","Dubai","Payment Failed","Failed",68000),
+                ("SHP1008",2,"Chennai","Singapore","Booked","Paid",52000)
+            ]
+        )
+
+    if pc.execute(
+        "SELECT COUNT(*) FROM incidents"
+    ).fetchone()[0] == 0:
+
+        pc.executemany(
+            """
+            INSERT INTO incidents
+            VALUES(?,?,?,?,?,?)
+            """,
+            [
+                (
+                    "INC-1001",
+                    "P2 - High",
+                    "Tracking Service",
+                    "Investigating",
+                    "Application Support",
+                    "Shipment tracking delay"
+                ),
+                (
+                    "INC-1002",
+                    "P2 - High",
+                    "Payment Service",
+                    "Monitoring",
+                    "Development Team",
+                    "Payment API slow"
+                ),
+                (
+                    "INC-1003",
+                    "P3 - Medium",
+                    "Authentication",
+                    "Resolved",
+                    "Application Support",
+                    "Login issue"
+                )
+            ]
+        )
+
+    if pc.execute(
+        "SELECT COUNT(*) FROM service_requests"
+    ).fetchone()[0] == 0:
+
+        pc.executemany(
+            """
+            INSERT INTO service_requests
+            VALUES(?,?,?,?,?,?)
+            """,
+            [
+                (
+                    "SR-3001",
+                    "Operations Team",
+                    "Access Request",
+                    "High",
+                    "In Progress",
+                    "Application Support"
+                ),
+                (
+                    "SR-3002",
+                    "Finance Team",
+                    "Report Request",
+                    "Medium",
+                    "Pending Approval",
+                    "Database Support"
+                ),
+                (
+                    "SR-3003",
+                    "Business User",
+                    "Password Reset",
+                    "Low",
+                    "Resolved",
+                    "Application Support"
+                )
+            ]
+        )
+
+    practice_conn.commit()
+
+
+def log_sql_history(
+    incident_ref,
+    target_table,
+    sql_query,
+    status,
+    rows
+):
+
+    try:
+
+        cursor.execute(
+            """
+            INSERT INTO sql_query_history(
+                related_incident,
+                target_table,
+                sql_query,
+                query_status,
+                rows_returned,
+                executed_at
+            )
+            VALUES(?,?,?,?,?,?)
+            """,
+            (
+                incident_ref,
+                target_table,
+                sql_query,
+                status,
+                rows,
+                now()
+            )
+        )
+
+        audit(
+            "SQL Investigation",
+            incident_ref,
+            "SQL Query Executed" if status == "Success"
+            else "SQL Query Failed",
+            (
+                f"Target table: {target_table}; "
+                f"Rows/affected: {rows}; "
+                f"Query: {sql_query}"
+            )
+        )
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+
 
 def sql_tool():
 
-    st.header(
-        "🗄️ SQL & Database Troubleshooting"
-    )
+    st.header("🗄️ SQL & Database Troubleshooting")
 
     st.caption(
-        "Read-only SQL console for primary analysis of shipment, booking and payment issues."
+        "Use Practice DB for INSERT / UPDATE / DELETE / CREATE / ALTER / DROP "
+        "and SQL interview practice. Main CargoFlow DB remains read-only."
     )
 
-    df = pd.read_sql_query(
+    practice_conn = get_sql_practice_connection()
+    init_sql_practice_db(practice_conn)
+
+    mode = st.radio(
+        "Database Mode",
+        [
+            "🧪 SQL Practice DB — Writable",
+            "🚢 MOL CargoFlow App DB — Read-only"
+        ],
+        horizontal=True,
+        key="sql_db_mode"
+    )
+
+    # =====================================================
+    # PRACTICE DATABASE
+    # =====================================================
+
+    if mode == "🧪 SQL Practice DB — Writable":
+
+        st.success(
+            "🟢 Writable Practice Database — DML + DDL enabled"
+        )
+
+        st.info(
+            "You can practice SELECT, INSERT, UPDATE, DELETE, "
+            "CREATE, ALTER, DROP, PRAGMA, JOIN, GROUP BY, "
+            "subqueries and aggregate functions here."
+        )
+
+        tables = pd.read_sql_query(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type='table'
+            AND name NOT LIKE 'sqlite_%'
+            ORDER BY name
+            """,
+            practice_conn
+        )
+
+        available_tables = tables["name"].tolist()
+
+        st.subheader("🗂️ Practice Database Tables")
+
+        selected_table = st.selectbox(
+            "Target Table",
+            ["-- Select Table --"] + available_tables,
+            key="practice_target_table"
+        )
+
+        if selected_table != "-- Select Table --":
+
+            st.caption(
+                f"Selected table: `{selected_table}`"
+            )
+
+            try:
+
+                preview = pd.read_sql_query(
+                    f'SELECT * FROM "{selected_table}" LIMIT 100',
+                    practice_conn
+                )
+
+                st.dataframe(
+                    preview,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+            except Exception as e:
+
+                st.error(str(e))
+
+        st.divider()
+
+        st.subheader("🔎 Investigation Context")
+
+        incident_list = [
+            "No Incident / General Investigation"
+        ] + pd.read_sql_query(
+            "SELECT incident_id FROM incidents ORDER BY incident_id",
+            conn
+        )["incident_id"].tolist()
+
+        related_incident = st.selectbox(
+            "Related Incident (Optional)",
+            incident_list,
+            key="practice_sql_incident"
+        )
+
+        st.caption(
+            "Incident linking is optional."
+        )
+
+        st.subheader("⌨️ SQL Practice Console")
+
+        default_query = (
+            f'SELECT * FROM "{selected_table}" LIMIT 100;'
+            if selected_table != "-- Select Table --"
+            else "SELECT * FROM employees;"
+        )
+
+        query = st.text_area(
+            "SQL Query",
+            value=default_query,
+            height=220,
+            key="practice_sql_query"
+        )
+
+        st.caption(
+            "One SQL statement at a time. "
+            "Writable operations are allowed in this separate Practice DB."
+        )
+
+        c1, c2 = st.columns(2)
+
+        execute = c1.button(
+            "▶️ Execute SQL",
+            key="execute_practice_sql",
+            use_container_width=True
+        )
+
+        reset = c2.button(
+            "♻️ Reset Practice DB",
+            key="reset_practice_db",
+            use_container_width=True
+        )
+
+        if reset:
+
+            try:
+
+                pc = practice_conn.cursor()
+
+                practice_tables = [
+                    r[0]
+                    for r in pc.execute(
+                        """
+                        SELECT name
+                        FROM sqlite_master
+                        WHERE type='table'
+                        AND name NOT LIKE 'sqlite_%'
+                        """
+                    ).fetchall()
+                ]
+
+                for table in practice_tables:
+
+                    pc.execute(
+                        f'DROP TABLE IF EXISTS "{table}"'
+                    )
+
+                practice_conn.commit()
+
+                init_sql_practice_db(practice_conn)
+
+                st.success(
+                    "Practice DB reset successfully."
+                )
+
+                st.rerun()
+
+            except Exception as e:
+
+                practice_conn.rollback()
+                st.error(str(e))
+
+        if execute:
+
+            clean = esc(query)
+            validation_query = clean.rstrip(";").strip()
+
+            if not clean:
+
+                st.error(
+                    "⚠ SQL Query is required."
+                )
+
+            elif ";" in validation_query:
+
+                st.error(
+                    "⚠ Multiple SQL statements are not allowed. "
+                    "Execute one statement at a time."
+                )
+
+            else:
+
+                incident_ref = (
+                    None
+                    if related_incident ==
+                    "No Incident / General Investigation"
+                    else related_incident
+                )
+
+                target_table = (
+                    selected_table
+                    if selected_table != "-- Select Table --"
+                    else "Custom / Multiple Tables"
+                )
+
+                try:
+
+                    pc = practice_conn.cursor()
+
+                    pc.execute(clean)
+
+                    rows_affected = 0
+
+                    if pc.description is not None:
+
+                        rows = pc.fetchall()
+
+                        columns = [
+                            d[0]
+                            for d in pc.description
+                        ]
+
+                        out = pd.DataFrame(
+                            rows,
+                            columns=columns
+                        )
+
+                        rows_affected = len(out)
+
+                        st.success(
+                            f"Query executed successfully. "
+                            f"{rows_affected} row(s) returned."
+                        )
+
+                        st.dataframe(
+                            out,
+                            use_container_width=True,
+                            hide_index=True
+                        )
+
+                    else:
+
+                        rows_affected = pc.rowcount
+
+                        practice_conn.commit()
+
+                        st.success(
+                            "SQL executed successfully."
+                        )
+
+                        st.info(
+                            f"Rows affected: {rows_affected}"
+                        )
+
+                    log_sql_history(
+                        incident_ref,
+                        target_table,
+                        clean,
+                        "Success",
+                        rows_affected
+                    )
+
+                except Exception as e:
+
+                    practice_conn.rollback()
+
+                    error_message = str(e)
+
+                    log_sql_history(
+                        incident_ref,
+                        target_table,
+                        clean,
+                        "Failed",
+                        0
+                    )
+
+                    st.error(
+                        f"SQL Error: {error_message}"
+                    )
+
+        st.divider()
+
+        st.subheader("📚 SQL Practice Examples")
+
+        st.code(
+            """
+-- SELECT
+SELECT * FROM employees;
+
+-- WHERE
+SELECT employee_name, salary
+FROM employees
+WHERE salary > 60000;
+
+-- INSERT
+INSERT INTO employees
+VALUES (107, 'Riya Roy', 'QA', 'Kolkata', 60000, 'Active');
+
+-- UPDATE
+UPDATE employees
+SET salary = 65000
+WHERE employee_id = 107;
+
+-- DELETE
+DELETE FROM employees
+WHERE employee_id = 107;
+
+-- CREATE
+CREATE TABLE test_table(
+    id INTEGER PRIMARY KEY,
+    name TEXT
+);
+
+-- ALTER
+ALTER TABLE test_table
+ADD COLUMN department TEXT;
+
+-- INSERT after ALTER
+INSERT INTO test_table
+VALUES (1, 'Pleaza', 'Support');
+
+-- DROP
+DROP TABLE test_table;
+
+-- JOIN
+SELECT
+    s.shipment_id,
+    c.customer_name,
+    s.destination,
+    s.amount
+FROM shipments s
+JOIN customers c
+    ON s.customer_id = c.customer_id;
+
+-- GROUP BY
+SELECT
+    payment_status,
+    COUNT(*) AS total_shipments,
+    SUM(amount) AS total_amount
+FROM shipments
+GROUP BY payment_status;
+
+-- HAVING
+SELECT
+    destination,
+    COUNT(*) AS total_shipments
+FROM shipments
+GROUP BY destination
+HAVING COUNT(*) > 1;
+
+-- SUBQUERY
+SELECT *
+FROM employees
+WHERE salary > (
+    SELECT AVG(salary)
+    FROM employees
+);
+
+-- IN
+SELECT *
+FROM employees
+WHERE department IN ('QA','Support');
+
+-- BETWEEN
+SELECT *
+FROM employees
+WHERE salary BETWEEN 50000 AND 70000;
+
+-- PRAGMA
+PRAGMA table_info(employees);
+            """,
+            language="sql"
+        )
+
+    # =====================================================
+    # MAIN APPLICATION DATABASE - READ ONLY
+    # =====================================================
+
+    else:
+
+        st.warning(
+            "🔒 Main MOL CargoFlow DB is READ-ONLY."
+        )
+
+        table_df = pd.read_sql_query(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type='table'
+            AND name NOT LIKE 'sqlite_%'
+            ORDER BY name
+            """,
+            conn
+        )
+
+        available_tables = table_df["name"].tolist()
+
+        st.subheader("🗂️ Application DB Table Explorer")
+
+        selected_table = st.selectbox(
+            "Target Table",
+            ["-- Select Table --"] + available_tables,
+            key="app_sql_target_table"
+        )
+
+        if selected_table != "-- Select Table --":
+
+            st.caption(
+                f"Selected table: `{selected_table}`"
+            )
+
+            preview_df = pd.read_sql_query(
+                f'SELECT * FROM "{selected_table}" LIMIT 100',
+                conn
+            )
+
+            st.dataframe(
+                preview_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        st.divider()
+
+        st.subheader("🔎 Investigation Context")
+
+        incident_list = [
+            "No Incident / General Investigation"
+        ] + pd.read_sql_query(
+            "SELECT incident_id FROM incidents ORDER BY rowid DESC",
+            conn
+        )["incident_id"].tolist()
+
+        related_incident = st.selectbox(
+            "Related Incident (Optional)",
+            incident_list,
+            key="app_sql_incident"
+        )
+
+        st.subheader("⌨️ Read-only SQL Query")
+
+        default_query = (
+            f'SELECT * FROM "{selected_table}" LIMIT 100;'
+            if selected_table != "-- Select Table --"
+            else "SELECT * FROM shipments LIMIT 100;"
+        )
+
+        query = st.text_area(
+            "SQL Query",
+            value=default_query,
+            height=180,
+            key="app_sql_query"
+        )
+
+        st.caption(
+            "Allowed: SELECT, WITH and PRAGMA read-only statements."
+        )
+
+        if st.button(
+            "▶️ Execute Read-only Query",
+            key="execute_app_sql_query"
+        ):
+
+            clean = esc(query)
+            validation_query = clean.rstrip(";").strip()
+
+            bad = False
+
+            if not clean:
+
+                st.error("⚠ SQL Query is required.")
+                bad = True
+
+            elif ";" in validation_query:
+
+                st.error(
+                    "⚠ Multiple SQL statements are not allowed."
+                )
+                bad = True
+
+            elif not validation_query.upper().startswith(
+                ("SELECT", "WITH", "PRAGMA")
+            ):
+
+                st.error(
+                    "⚠ Only SELECT, WITH and PRAGMA read-only "
+                    "queries are allowed in App DB."
+                )
+                bad = True
+
+            blocked_keywords = [
+                "INSERT",
+                "UPDATE",
+                "DELETE",
+                "DROP",
+                "ALTER",
+                "CREATE",
+                "REPLACE",
+                "ATTACH",
+                "DETACH",
+                "VACUUM",
+                "REINDEX"
+            ]
+
+            upper_query = validation_query.upper()
+
+            if not bad:
+
+                for keyword in blocked_keywords:
+
+                    if (
+                        f"{keyword} " in upper_query
+                        or f"{keyword}(" in upper_query
+                        or upper_query.startswith(keyword)
+                    ):
+
+                        st.error(
+                            f"⚠ `{keyword}` operation is blocked "
+                            "in the Application DB."
+                        )
+
+                        bad = True
+                        break
+
+            if not bad:
+
+                incident_ref = (
+                    None
+                    if related_incident ==
+                    "No Incident / General Investigation"
+                    else related_incident
+                )
+
+                target_table = (
+                    selected_table
+                    if selected_table != "-- Select Table --"
+                    else "Custom / Multiple Tables"
+                )
+
+                try:
+
+                    out = pd.read_sql_query(
+                        clean,
+                        conn
+                    )
+
+                    row_count = len(out)
+
+                    st.success(
+                        f"Query executed successfully. "
+                        f"{row_count} row(s) returned."
+                    )
+
+                    st.dataframe(
+                        out,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                    log_sql_history(
+                        incident_ref,
+                        target_table,
+                        clean,
+                        "Success",
+                        row_count
+                    )
+
+                except Exception as e:
+
+                    error_message = str(e)
+
+                    log_sql_history(
+                        incident_ref,
+                        target_table,
+                        clean,
+                        "Failed",
+                        0
+                    )
+
+                    st.error(
+                        f"SQL Error: {error_message}"
+                    )
+
+    # =====================================================
+    # SQL HISTORY
+    # =====================================================
+
+    st.divider()
+
+    st.subheader("📜 SQL Query History")
+
+    history_df = pd.read_sql_query(
         """
         SELECT
-            shipment_id AS 'Shipment ID',
-            customer_name AS 'Customer Name',
-            origin AS Origin,
-            destination AS Destination,
-            status AS Status,
-            payment_status AS 'Payment Status',
-            amount AS Amount
-        FROM shipments
+            query_id AS 'Query ID',
+            COALESCE(
+                related_incident,
+                'General Investigation'
+            ) AS 'Related Incident',
+            target_table AS 'Target Table',
+            sql_query AS 'SQL Query',
+            query_status AS Status,
+            rows_returned AS 'Rows / Affected',
+            executed_at AS 'Executed At'
+        FROM sql_query_history
+        ORDER BY query_id DESC
         """,
         conn
     )
 
-    st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True
-    )
+    if not history_df.empty:
 
-    inc = st.selectbox(
-        "Related Incident",
-        incident_options(),
-        key="sql_inc"
-    )
+        st.dataframe(
+            history_df,
+            use_container_width=True,
+            hide_index=True
+        )
 
-    inc_e = st.empty()
+    else:
 
-    q = st.text_area(
-        "SQL Query",
-        value="SELECT * FROM shipments;",
-        height=120
-    )
+        st.info(
+            "No SQL queries have been executed yet."
+        )
 
-    q_e = st.empty()
-
-    if st.button(
-        "▶️ Execute Read-only Query"
-    ):
-
-        bad = False
-
-        if inc == "Select Incident":
-
-            inc_e.error(
-                "⚠ Please select a Related Incident."
-            )
-
-            bad = True
-
-        clean = esc(q)
-
-        if not clean:
-
-            q_e.error(
-                "⚠ SQL Query is required."
-            )
-
-            bad = True
-
-        elif not clean.upper().startswith(
-            ("SELECT", "WITH", "PRAGMA")
-        ):
-
-            q_e.error(
-                "⚠ Only SELECT, WITH and PRAGMA queries are allowed."
-            )
-
-            bad = True
-
-        if not bad:
-
-            try:
-
-                out = pd.read_sql_query(
-                    clean,
-                    conn
-                )
-
-                st.success(
-                    "Query executed successfully."
-                )
-
-                st.dataframe(
-                    out,
-                    use_container_width=True
-                )
-
-                audit(
-                    "SQL Investigation",
-                    inc,
-                    "SQL Query Executed",
-                    f"Read-only query: {clean}"
-                )
-
-                conn.commit()
-
-            except Exception as e:
-
-                conn.rollback()
-
-                q_e.error(
-                    f"SQL Error: {e}"
-                )
-
-
-# =========================================================
+        # =========================================================
 # RCA
 # =========================================================
 
 def rca():
 
-    st.header(
-        "🔍 Root Cause Analysis & Investigation"
-    )
+    st.header("🔍 Root Cause Analysis & Investigation")
 
-    with st.form(
-        "rca_form",
-        clear_on_submit=True
-    ):
+    with st.form("rca_form", clear_on_submit=True):
 
         inc = st.selectbox(
             "Incident ID",
@@ -1623,10 +2227,7 @@ def rca():
             )
 
             vals.append(v)
-
-            errs.append(
-                st.empty()
-            )
+            errs.append(st.empty())
 
         save = st.form_submit_button(
             "🔍 Save RCA"
@@ -1637,16 +2238,17 @@ def rca():
         bad = inc.startswith("Select")
 
         if bad:
-
             inc_e.error(
                 "⚠ Please select an Incident."
             )
 
-        for v, e, (label, _) in zip(
+        for v, e, item in zip(
             vals,
             errs,
             labels
         ):
+
+            label = item[0]
 
             if not esc(v):
 
@@ -1698,7 +2300,6 @@ def rca():
             except Exception as e:
 
                 conn.rollback()
-
                 st.error(str(e))
 
     st.subheader("📋 RCA History")
@@ -1732,19 +2333,14 @@ def rca():
 
 def requests():
 
-    st.header(
-        "🎫 Support Requests"
-    )
+    st.header("🎫 Support Requests")
 
     st.write(
         "Manage functional support requests, Code Registration, "
         "Data Provision and user service tasks."
     )
 
-    with st.form(
-        "support_form",
-        clear_on_submit=True
-    ):
+    with st.form("support_form", clear_on_submit=True):
 
         c1, c2 = st.columns(2)
 
@@ -1754,7 +2350,6 @@ def requests():
                 "Request / Task ID",
                 placeholder="SR-3006 / CR-2026-001"
             )
-
             rid_e = st.empty()
 
             typ = st.selectbox(
@@ -1771,7 +2366,6 @@ def requests():
                     "General User Query"
                 ]
             )
-
             typ_e = st.empty()
 
             pri = st.selectbox(
@@ -1783,14 +2377,12 @@ def requests():
                     "Low"
                 ]
             )
-
             pri_e = st.empty()
 
             by = st.text_input(
                 "Requested By",
                 placeholder="MOL User / Operations Team"
             )
-
             by_e = st.empty()
 
         with c2:
@@ -1807,7 +2399,6 @@ def requests():
                     "System Support"
                 ]
             )
-
             team_e = st.empty()
 
             status = st.selectbox(
@@ -1822,7 +2413,6 @@ def requests():
                     "Closed"
                 ]
             )
-
             status_e = st.empty()
 
             due_default = datetime.now(
@@ -1836,14 +2426,12 @@ def requests():
                 "Due Date (IST)",
                 value=due_default.date()
             )
-
             due_date_e = st.empty()
 
             due_time = st.time_input(
                 "Due Time (IST)",
                 value=due_default.time()
             )
-
             due_time_e = st.empty()
 
         inc = st.selectbox(
@@ -1851,16 +2439,13 @@ def requests():
             incident_options()
         )
 
-        inc_e = st.empty()
-
         detail_label = (
             "Code Registration / Data Provision Details"
             if typ in [
                 "Code Registration",
                 "Data Provision"
             ]
-            else
-            "Task / Request Details"
+            else "Task / Request Details"
         )
 
         desc = st.text_area(
@@ -1915,9 +2500,7 @@ def requests():
         due_dt = datetime.combine(
             due_date,
             due_time
-        ).replace(
-            tzinfo=IST
-        )
+        ).replace(tzinfo=IST)
 
         if due_dt < datetime.now(IST).replace(
             second=0,
@@ -1947,7 +2530,10 @@ def requests():
                 )
 
                 cursor.execute(
-                    "INSERT INTO support_tasks VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    """
+                    INSERT INTO support_tasks
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                    """,
                     (
                         esc(rid),
                         typ,
@@ -1994,12 +2580,9 @@ def requests():
             except Exception as e:
 
                 conn.rollback()
-
                 st.error(str(e))
 
-    st.subheader(
-        "📋 Support Queue"
-    )
+    st.subheader("📋 Support Queue")
 
     df = pd.read_sql_query(
         """
@@ -2049,23 +2632,18 @@ def communication():
         "and System Support teams."
     )
 
-    with st.form(
-        "comm_form",
-        clear_on_submit=True
-    ):
+    with st.form("comm_form", clear_on_submit=True):
 
         cid = st.text_input(
             "Communication ID",
             placeholder="COM-2026-001"
         )
-
         cid_e = st.empty()
 
         inc = st.selectbox(
             "Related Incident",
             incident_options()
         )
-
         inc_e = st.empty()
 
         c1, c2 = st.columns(2)
@@ -2084,14 +2662,12 @@ def communication():
                     "Other"
                 ]
             )
-
             ct_e = st.empty()
 
             name = st.text_input(
                 "Contact / Stakeholder Name",
                 placeholder="Team or user name"
             )
-
             name_e = st.empty()
 
         with c2:
@@ -2107,28 +2683,24 @@ def communication():
                     "Ticket Update"
                 ]
             )
-
             mt_e = st.empty()
 
             subject = st.text_input(
                 "Subject",
                 placeholder="Payment API investigation update"
             )
-
             subject_e = st.empty()
 
         notes = st.text_area(
             "Communication / Findings",
             placeholder="What was communicated, requested or confirmed?"
         )
-
         notes_e = st.empty()
 
         nxt = st.text_area(
             "Next Action / Follow-up",
             placeholder="Development to check API logs by 16:00 IST..."
         )
-
         nxt_e = st.empty()
 
         go = st.form_submit_button(
@@ -2176,7 +2748,10 @@ def communication():
                 t = now()
 
                 cursor.execute(
-                    "INSERT INTO communications VALUES(?,?,?,?,?,?,?,?,?)",
+                    """
+                    INSERT INTO communications
+                    VALUES(?,?,?,?,?,?,?,?,?)
+                    """,
                     (
                         esc(cid),
                         inc,
@@ -2216,12 +2791,9 @@ def communication():
             except Exception as e:
 
                 conn.rollback()
-
                 st.error(str(e))
 
-    st.subheader(
-        "📋 Communication History"
-    )
+    st.subheader("📋 Communication History")
 
     df = pd.read_sql_query(
         """
@@ -2246,8 +2818,650 @@ def communication():
         hide_index=True
     )
 
+    # =========================================================
+# RCA
+# =========================================================
+
+def rca():
+
+    st.header("🔍 Root Cause Analysis & Investigation")
+
+    with st.form("rca_form", clear_on_submit=True):
+
+        inc = st.selectbox(
+            "Incident ID",
+            incident_options(),
+            key="rca_inc"
+        )
+
+        inc_e = st.empty()
+
+        labels = [
+            (
+                "Observed Symptom",
+                "Describe what users/operations observed..."
+            ),
+            (
+                "Investigation Performed",
+                "Logs, SQL, API checks, monitoring..."
+            ),
+            (
+                "Root Cause",
+                "Document evidence-based root cause..."
+            ),
+            (
+                "Resolution",
+                "Document corrective action..."
+            ),
+            (
+                "Preventive Action",
+                "Document how recurrence will be prevented..."
+            )
+        ]
+
+        vals = []
+        errs = []
+
+        for label, ph in labels:
+
+            v = st.text_area(
+                label,
+                placeholder=ph
+            )
+
+            vals.append(v)
+            errs.append(st.empty())
+
+        save = st.form_submit_button(
+            "🔍 Save RCA"
+        )
+
+    if save:
+
+        bad = inc.startswith("Select")
+
+        if bad:
+            inc_e.error(
+                "⚠ Please select an Incident."
+            )
+
+        for v, e, item in zip(
+            vals,
+            errs,
+            labels
+        ):
+
+            label = item[0]
+
+            if not esc(v):
+
+                e.error(
+                    f"⚠ {label} is required."
+                )
+
+                bad = True
+
+        if not bad:
+
+            try:
+
+                cursor.execute(
+                    """
+                    INSERT INTO rca_records(
+                        incident_id,
+                        observed_symptom,
+                        investigation,
+                        root_cause,
+                        resolution,
+                        prevention
+                    )
+                    VALUES(?,?,?,?,?,?)
+                    """,
+                    (
+                        inc,
+                        *map(esc, vals)
+                    )
+                )
+
+                rid = cursor.lastrowid
+
+                audit(
+                    "RCA",
+                    inc,
+                    "RCA Recorded",
+                    f"RCA-{rid} documented for {inc}."
+                )
+
+                conn.commit()
+
+                st.success(
+                    f"RCA-{rid} recorded."
+                )
+
+                st.rerun()
+
+            except Exception as e:
+
+                conn.rollback()
+                st.error(str(e))
+
+    st.subheader("📋 RCA History")
+
+    df = pd.read_sql_query(
+        """
+        SELECT
+            rca_id AS 'RCA ID',
+            incident_id AS 'Incident ID',
+            observed_symptom AS Symptom,
+            investigation AS Investigation,
+            root_cause AS 'Root Cause',
+            resolution AS Resolution,
+            prevention AS 'Preventive Action'
+        FROM rca_records
+        ORDER BY rca_id DESC
+        """,
+        conn
+    )
+
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
+
 
 # =========================================================
+# SUPPORT REQUESTS
+# =========================================================
+
+def requests():
+
+    st.header("🎫 Support Requests")
+
+    st.write(
+        "Manage functional support requests, Code Registration, "
+        "Data Provision and user service tasks."
+    )
+
+    with st.form("support_form", clear_on_submit=True):
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            rid = st.text_input(
+                "Request / Task ID",
+                placeholder="SR-3006 / CR-2026-001"
+            )
+            rid_e = st.empty()
+
+            typ = st.selectbox(
+                "Request Type",
+                [
+                    "Select Type",
+                    "Code Registration",
+                    "Data Provision",
+                    "Access Request",
+                    "Password Reset",
+                    "Report Request",
+                    "Data Correction",
+                    "Application Configuration",
+                    "General User Query"
+                ]
+            )
+            typ_e = st.empty()
+
+            pri = st.selectbox(
+                "Priority",
+                [
+                    "Select Priority",
+                    "High",
+                    "Medium",
+                    "Low"
+                ]
+            )
+            pri_e = st.empty()
+
+            by = st.text_input(
+                "Requested By",
+                placeholder="MOL User / Operations Team"
+            )
+            by_e = st.empty()
+
+        with c2:
+
+            team = st.selectbox(
+                "Assigned Team",
+                [
+                    "Select Team",
+                    "Application Support",
+                    "Development Team",
+                    "Database Support",
+                    "Infrastructure Team",
+                    "Security Team",
+                    "System Support"
+                ]
+            )
+            team_e = st.empty()
+
+            status = st.selectbox(
+                "Status",
+                [
+                    "Select Status",
+                    "New",
+                    "In Progress",
+                    "Pending Approval",
+                    "Completed",
+                    "Resolved",
+                    "Closed"
+                ]
+            )
+            status_e = st.empty()
+
+            due_default = datetime.now(
+                IST
+            ).replace(
+                second=0,
+                microsecond=0
+            )
+
+            due_date = st.date_input(
+                "Due Date (IST)",
+                value=due_default.date()
+            )
+            due_date_e = st.empty()
+
+            due_time = st.time_input(
+                "Due Time (IST)",
+                value=due_default.time()
+            )
+            due_time_e = st.empty()
+
+        inc = st.selectbox(
+            "Related Incident (Optional)",
+            incident_options()
+        )
+
+        detail_label = (
+            "Code Registration / Data Provision Details"
+            if typ in [
+                "Code Registration",
+                "Data Provision"
+            ]
+            else "Task / Request Details"
+        )
+
+        desc = st.text_area(
+            detail_label,
+            placeholder=(
+                "Code Registration: application/code name, "
+                "business purpose, validation needed...\n"
+                "Data Provision: data required, source, "
+                "business purpose, required date..."
+            )
+        )
+
+        desc_e = st.empty()
+
+        submit = st.form_submit_button(
+            "🎫 Create Support Task"
+        )
+
+    if submit:
+
+        bad = False
+
+        for v, e, msg in [
+            (rid, rid_e, "Request / Task ID"),
+            (by, by_e, "Requested By"),
+            (desc, desc_e, detail_label)
+        ]:
+
+            if not esc(v):
+
+                e.error(
+                    f"⚠ {msg} is required."
+                )
+
+                bad = True
+
+        for v, e, msg in [
+            (typ, typ_e, "Request Type"),
+            (pri, pri_e, "Priority"),
+            (team, team_e, "Assigned Team"),
+            (status, status_e, "Status")
+        ]:
+
+            if v.startswith("Select"):
+
+                e.error(
+                    f"⚠ Please select {msg}."
+                )
+
+                bad = True
+
+        due_dt = datetime.combine(
+            due_date,
+            due_time
+        ).replace(tzinfo=IST)
+
+        if due_dt < datetime.now(IST).replace(
+            second=0,
+            microsecond=0
+        ):
+
+            due_date_e.error(
+                "⚠ Due Date/Time cannot be in the past."
+            )
+
+            bad = True
+
+        if not bad:
+
+            try:
+
+                t = now()
+
+                related = (
+                    None
+                    if inc == "Select Incident"
+                    else inc
+                )
+
+                due_value = due_dt.strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+
+                cursor.execute(
+                    """
+                    INSERT INTO support_tasks
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        esc(rid),
+                        typ,
+                        pri,
+                        esc(by),
+                        status,
+                        team,
+                        esc(desc),
+                        due_value,
+                        None,
+                        related,
+                        t
+                    )
+                )
+
+                audit(
+                    "Support Request",
+                    esc(rid),
+                    "Support Task Created",
+                    f"{typ} created for {esc(by)}"
+                    + (
+                        f" and linked to {related}."
+                        if related
+                        else "."
+                    )
+                )
+
+                conn.commit()
+
+                st.success(
+                    f"{esc(rid)} created successfully."
+                )
+
+                st.rerun()
+
+            except sqlite3.IntegrityError:
+
+                conn.rollback()
+
+                rid_e.error(
+                    f"⚠ ID '{esc(rid)}' already exists."
+                )
+
+            except Exception as e:
+
+                conn.rollback()
+                st.error(str(e))
+
+    st.subheader("📋 Support Queue")
+
+    df = pd.read_sql_query(
+        """
+        SELECT
+            task_id AS 'Task ID',
+            task_type AS 'Type',
+            priority AS Priority,
+            requested_by AS 'Requested By',
+            status AS Status,
+            assigned_team AS 'Assigned Team',
+            due_datetime AS 'Due (IST)',
+            related_incident AS 'Related Incident',
+            created_at AS 'Created At'
+        FROM support_tasks
+        ORDER BY rowid DESC
+        """,
+        conn
+    )
+
+    if not df.empty:
+
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    else:
+
+        st.info(
+            "No support requests or tasks recorded yet."
+        )
+
+
+# =========================================================
+# COMMUNICATION
+# =========================================================
+
+def communication():
+
+    st.header(
+        "🤝 Communication & Stakeholder Coordination"
+    )
+
+    st.caption(
+        "Document direct contact with MOL Users, Development "
+        "and System Support teams."
+    )
+
+    with st.form("comm_form", clear_on_submit=True):
+
+        cid = st.text_input(
+            "Communication ID",
+            placeholder="COM-2026-001"
+        )
+        cid_e = st.empty()
+
+        inc = st.selectbox(
+            "Related Incident",
+            incident_options()
+        )
+        inc_e = st.empty()
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            ct = st.selectbox(
+                "Contact Type",
+                [
+                    "Select Contact",
+                    "MOL User",
+                    "Development Team",
+                    "System Support",
+                    "Database Support",
+                    "Infrastructure Team",
+                    "Other"
+                ]
+            )
+            ct_e = st.empty()
+
+            name = st.text_input(
+                "Contact / Stakeholder Name",
+                placeholder="Team or user name"
+            )
+            name_e = st.empty()
+
+        with c2:
+
+            mt = st.selectbox(
+                "Communication Type",
+                [
+                    "Select Type",
+                    "Email",
+                    "Phone",
+                    "Teams / Chat",
+                    "Meeting",
+                    "Ticket Update"
+                ]
+            )
+            mt_e = st.empty()
+
+            subject = st.text_input(
+                "Subject",
+                placeholder="Payment API investigation update"
+            )
+            subject_e = st.empty()
+
+        notes = st.text_area(
+            "Communication / Findings",
+            placeholder="What was communicated, requested or confirmed?"
+        )
+        notes_e = st.empty()
+
+        nxt = st.text_area(
+            "Next Action / Follow-up",
+            placeholder="Development to check API logs by 16:00 IST..."
+        )
+        nxt_e = st.empty()
+
+        go = st.form_submit_button(
+            "🤝 Log Communication"
+        )
+
+    if go:
+
+        bad = False
+
+        for v, e, msg in [
+            (cid, cid_e, "Communication ID"),
+            (name, name_e, "Contact / Stakeholder Name"),
+            (subject, subject_e, "Subject"),
+            (notes, notes_e, "Communication / Findings"),
+            (nxt, nxt_e, "Next Action / Follow-up")
+        ]:
+
+            if not esc(v):
+
+                e.error(
+                    f"⚠ {msg} is required."
+                )
+
+                bad = True
+
+        for v, e, msg in [
+            (inc, inc_e, "Related Incident"),
+            (ct, ct_e, "Contact Type"),
+            (mt, mt_e, "Communication Type")
+        ]:
+
+            if v.startswith("Select"):
+
+                e.error(
+                    f"⚠ Please select {msg}."
+                )
+
+                bad = True
+
+        if not bad:
+
+            try:
+
+                t = now()
+
+                cursor.execute(
+                    """
+                    INSERT INTO communications
+                    VALUES(?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        esc(cid),
+                        inc,
+                        ct,
+                        esc(name),
+                        mt,
+                        esc(subject),
+                        esc(notes),
+                        esc(nxt),
+                        t
+                    )
+                )
+
+                audit(
+                    "Communication",
+                    inc,
+                    "Stakeholder Contact Logged",
+                    f"{ct} contacted regarding {esc(subject)}."
+                )
+
+                conn.commit()
+
+                st.success(
+                    "Communication logged."
+                )
+
+                st.rerun()
+
+            except sqlite3.IntegrityError:
+
+                conn.rollback()
+
+                cid_e.error(
+                    "⚠ Communication ID already exists."
+                )
+
+            except Exception as e:
+
+                conn.rollback()
+                st.error(str(e))
+
+    st.subheader("📋 Communication History")
+
+    df = pd.read_sql_query(
+        """
+        SELECT
+            comm_id AS 'Communication ID',
+            incident_id AS 'Incident ID',
+            contact_type AS 'Contact Type',
+            contact_name AS Stakeholder,
+            communication_type AS Channel,
+            subject AS Subject,
+            next_action AS 'Next Action',
+            communication_time AS 'Time'
+        FROM communications
+        ORDER BY communication_time DESC
+        """,
+        conn
+    )
+
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # =========================================================
 # RELEASE & ANNOUNCEMENTS
 # =========================================================
 
@@ -2257,10 +3471,7 @@ def releases():
         "🚀 Release, Data Patch & User Announcement"
     )
 
-    with st.form(
-        "release_form",
-        clear_on_submit=True
-    ):
+    with st.form("release_form", clear_on_submit=True):
 
         c1, c2 = st.columns(2)
 
@@ -2270,14 +3481,12 @@ def releases():
                 "Release / Patch ID",
                 placeholder="REL-2026-002"
             )
-
             rid_e = st.empty()
 
             ver = st.text_input(
                 "Version / Patch",
                 placeholder="v2.4.2 / DP-2026-07"
             )
-
             ver_e = st.empty()
 
             env = st.selectbox(
@@ -2291,7 +3500,6 @@ def releases():
                     "Production"
                 ]
             )
-
             env_e = st.empty()
 
             stat = st.selectbox(
@@ -2305,21 +3513,18 @@ def releases():
                     "Rolled Back"
                 ]
             )
-
             stat_e = st.empty()
 
             owner = st.text_input(
                 "Release Owner",
                 placeholder="Application Support / Development"
             )
-
             owner_e = st.empty()
 
             inc = st.selectbox(
                 "Related Incident",
                 incident_options()
             )
-
             inc_e = st.empty()
 
         with c2:
@@ -2341,21 +3546,18 @@ def releases():
                 "Change Summary",
                 placeholder="Functional fix / data patch / program release..."
             )
-
             summary_e = st.empty()
 
             rollback = st.text_area(
                 "Rollback Plan",
                 placeholder="Rollback steps and validation..."
             )
-
             rollback_e = st.empty()
 
             outcome = st.text_area(
                 "Release Outcome",
                 placeholder="Deployment result and validation..."
             )
-
             outcome_e = st.empty()
 
         go = st.form_submit_button(
@@ -2409,7 +3611,10 @@ def releases():
                 )
 
                 cursor.execute(
-                    "INSERT INTO releases VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    """
+                    INSERT INTO releases
+                    VALUES(?,?,?,?,?,?,?,?,?,?)
+                    """,
                     (
                         esc(rid),
                         esc(ver),
@@ -2450,12 +3655,9 @@ def releases():
             except Exception as e:
 
                 conn.rollback()
-
                 st.error(str(e))
 
-    st.subheader(
-        "📋 Release History"
-    )
+    st.subheader("📋 Release History")
 
     df = pd.read_sql_query(
         """
@@ -2480,34 +3682,26 @@ def releases():
         hide_index=True
     )
 
-    st.subheader(
-        "📣 User Announcement"
-    )
+    st.subheader("📣 User Announcement")
 
-    with st.form(
-        "announcement_form",
-        clear_on_submit=True
-    ):
+    with st.form("announcement_form", clear_on_submit=True):
 
         aid = st.text_input(
             "Announcement ID",
             placeholder="ANN-2026-001"
         )
-
         aid_e = st.empty()
 
         rel = st.text_input(
             "Related Release / Patch ID",
             placeholder="REL-2026-002"
         )
-
         rel_e = st.empty()
 
         app = st.text_input(
             "Application",
             placeholder="CargoFlow Tracking"
         )
-
         app_e = st.empty()
 
         typ = st.selectbox(
@@ -2521,28 +3715,24 @@ def releases():
                 "Data Patch"
             ]
         )
-
         typ_e = st.empty()
 
         sub = st.text_input(
             "Subject",
             placeholder="Planned maintenance - Tracking unavailable"
         )
-
         sub_e = st.empty()
 
         msg = st.text_area(
             "Announcement Message",
             placeholder="Inform users about timing, impact and restrictions..."
         )
-
         msg_e = st.empty()
 
         aud = st.text_input(
             "Audience",
             placeholder="MOL Operations Users"
         )
-
         aud_e = st.empty()
 
         stt = st.selectbox(
@@ -2554,7 +3744,6 @@ def releases():
                 "Sent"
             ]
         )
-
         stt_e = st.empty()
 
         save = st.form_submit_button(
@@ -2600,7 +3789,10 @@ def releases():
             try:
 
                 cursor.execute(
-                    "INSERT INTO announcements VALUES(?,?,?,?,?,?,?,?,?)",
+                    """
+                    INSERT INTO announcements
+                    VALUES(?,?,?,?,?,?,?,?,?)
+                    """,
                     (
                         esc(aid),
                         esc(rel),
@@ -2640,7 +3832,6 @@ def releases():
             except Exception as e:
 
                 conn.rollback()
-
                 st.error(str(e))
 
     ad = pd.read_sql_query(
@@ -2673,18 +3864,13 @@ def releases():
 
 def daily():
 
-    st.header(
-        "📝 Daily Log & Shift Handover"
-    )
+    st.header("📝 Daily Log & Shift Handover")
 
     st.caption(
         "Operational log sheet and formal shift hand-over evidence."
     )
 
-    with st.form(
-        "daily_form",
-        clear_on_submit=True
-    ):
+    with st.form("daily_form", clear_on_submit=True):
 
         d = st.date_input(
             "Log Date",
@@ -2701,27 +3887,23 @@ def daily():
                 "Night"
             ]
         )
-
         shift_e = st.empty()
 
         owner = st.text_input(
             "Support Engineer / Owner"
         )
-
         owner_e = st.empty()
 
         summary = st.text_area(
             "Daily Support Summary",
             placeholder="Incidents, requests, alerts, releases, monitoring..."
         )
-
         summary_e = st.empty()
 
         pending = st.text_area(
             "Pending Items",
             placeholder="Open issues and follow-ups for next shift..."
         )
-
         pending_e = st.empty()
 
         go = st.form_submit_button(
@@ -2738,25 +3920,21 @@ def daily():
         )
 
         if shift.startswith("Select"):
-
             shift_e.error(
                 "⚠ Please select a Shift."
             )
 
         if not esc(owner):
-
             owner_e.error(
                 "⚠ Owner is required."
             )
 
         if not esc(summary):
-
             summary_e.error(
                 "⚠ Daily Support Summary is required."
             )
 
         if not esc(pending):
-
             pending_e.error(
                 "⚠ Pending Items are required."
             )
@@ -2800,10 +3978,7 @@ def daily():
 
             st.rerun()
 
-    with st.form(
-        "handover_form",
-        clear_on_submit=True
-    ):
+    with st.form("handover_form", clear_on_submit=True):
 
         d = st.date_input(
             "Handover Date",
@@ -2822,7 +3997,6 @@ def daily():
             ],
             key="fs"
         )
-
         fs_e = st.empty()
 
         ts = st.selectbox(
@@ -2836,37 +4010,21 @@ def daily():
             ],
             key="ts"
         )
-
         ts_e = st.empty()
 
-        hb = st.text_input(
-            "Handed Over By"
-        )
-
+        hb = st.text_input("Handed Over By")
         hb_e = st.empty()
 
-        rb = st.text_input(
-            "Received By"
-        )
-
+        rb = st.text_input("Received By")
         rb_e = st.empty()
 
-        oi = st.text_area(
-            "Open Items"
-        )
-
+        oi = st.text_area("Open Items")
         oi_e = st.empty()
 
-        cw = st.text_area(
-            "Critical Watch / Alerts"
-        )
-
+        cw = st.text_area("Critical Watch / Alerts")
         cw_e = st.empty()
 
-        na = st.text_area(
-            "Next Actions"
-        )
-
+        na = st.text_area("Next Actions")
         na_e = st.empty()
 
         go = st.form_submit_button(
@@ -2937,8 +4095,7 @@ def daily():
                 "Shift Handover",
                 str(d),
                 "Shift Handover Recorded",
-                f"{fs} → {ts}; "
-                f"{esc(hb)} to {esc(rb)}."
+                f"{fs} → {ts}; {esc(hb)} to {esc(rb)}."
             )
 
             conn.commit()
@@ -2949,9 +4106,7 @@ def daily():
 
             st.rerun()
 
-    st.subheader(
-        "📋 Daily Logs"
-    )
+    st.subheader("📋 Daily Logs")
 
     st.dataframe(
         pd.read_sql_query(
@@ -2972,9 +4127,7 @@ def daily():
         hide_index=True
     )
 
-    st.subheader(
-        "🔄 Handover History"
-    )
+    st.subheader("🔄 Handover History")
 
     st.dataframe(
         pd.read_sql_query(
@@ -3015,10 +4168,6 @@ def knowledge():
         ]
     )
 
-    # -----------------------------------------------------
-    # SOP / KNOWLEDGE BASE
-    # -----------------------------------------------------
-
     with tab1:
 
         with st.form(
@@ -3030,7 +4179,6 @@ def knowledge():
                 "SOP / KB ID",
                 placeholder="SOP-TRK-001"
             )
-
             kid_e = st.empty()
 
             cat = st.selectbox(
@@ -3046,13 +4194,9 @@ def knowledge():
                     "Shift Handover"
                 ]
             )
-
             cat_e = st.empty()
 
-            title = st.text_input(
-                "Title"
-            )
-
+            title = st.text_input("Title")
             title_e = st.empty()
 
             proc = st.text_area(
@@ -3060,20 +4204,15 @@ def knowledge():
                 placeholder="Document step-by-step standard process...",
                 height=220
             )
-
             proc_e = st.empty()
 
-            owner = st.text_input(
-                "Owner"
-            )
-
+            owner = st.text_input("Owner")
             owner_e = st.empty()
 
             ver = st.text_input(
                 "Version",
                 placeholder="1.0"
             )
-
             ver_e = st.empty()
 
             status = st.selectbox(
@@ -3086,7 +4225,6 @@ def knowledge():
                     "Retired"
                 ]
             )
-
             status_e = st.empty()
 
             go = st.form_submit_button(
@@ -3182,12 +4320,7 @@ def knowledge():
                 except Exception as e:
 
                     conn.rollback()
-
                     st.error(str(e))
-
-        # =================================================
-        # UPDATED SOP TABLE
-        # =================================================
 
         st.subheader(
             "📋 SOP / Knowledge Base Records"
@@ -3224,10 +4357,6 @@ def knowledge():
                 "No SOP / KB records available yet."
             )
 
-    # -----------------------------------------------------
-    # UAT & TRAINING
-    # -----------------------------------------------------
-
     with tab2:
 
         with st.form(
@@ -3243,26 +4372,22 @@ def knowledge():
                     "Training Support"
                 ]
             )
-
             rt_e = st.empty()
 
             ref = st.text_input(
                 "Reference ID",
                 placeholder="UAT-2026-001"
             )
-
             ref_e = st.empty()
 
             app = st.text_input(
                 "Application / Module"
             )
-
             app_e = st.empty()
 
             owner = st.text_input(
                 "Owner / Coordinator"
             )
-
             owner_e = st.empty()
 
             status = st.selectbox(
@@ -3275,21 +4400,18 @@ def knowledge():
                     "Blocked"
                 ]
             )
-
             status_e = st.empty()
 
             details = st.text_area(
                 "Activity Details",
                 placeholder="UAT scenario, user training topic, support provided..."
             )
-
             details_e = st.empty()
 
             outcome = st.text_area(
                 "Outcome / Findings",
                 placeholder="Result, defects, user feedback or completion..."
             )
-
             outcome_e = st.empty()
 
             go = st.form_submit_button(
@@ -3380,17 +4502,17 @@ def knowledge():
             pd.read_sql_query(
                 """
                 SELECT
-    record_id AS ID,
-    record_type AS 'Record Type',
-    reference_id AS 'Reference ID',
-    application AS 'Application / Module',
-    owner AS 'Owner / Coordinator',
-    status AS Status,
-    details AS 'Activity Details',
-    outcome AS 'Outcome / Findings',
-    record_date AS 'Record Date'
-FROM uat_training
-ORDER BY record_date DESC
+                    record_id AS ID,
+                    record_type AS 'Record Type',
+                    reference_id AS 'Reference ID',
+                    application AS 'Application / Module',
+                    owner AS 'Owner / Coordinator',
+                    status AS Status,
+                    details AS 'Activity Details',
+                    outcome AS 'Outcome / Findings',
+                    record_date AS 'Record Date'
+                FROM uat_training
+                ORDER BY record_date DESC
                 """,
                 conn
             ),
@@ -3398,16 +4520,13 @@ ORDER BY record_date DESC
             hide_index=True
         )
 
-
-# =========================================================
+        # =========================================================
 # INCIDENT 360
 # =========================================================
 
 def incident360():
 
-    st.header(
-        "🔄 Incident 360 View"
-    )
+    st.header("🔄 Incident 360 View")
 
     inc = st.selectbox(
         "Select Incident",
@@ -3424,33 +4543,17 @@ def incident360():
         return
 
     r = pd.read_sql_query(
-        "SELECT * FROM incidents "
-        "WHERE incident_id=?",
+        "SELECT * FROM incidents WHERE incident_id=?",
         conn,
         params=(inc,)
     ).iloc[0]
 
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric(
-        "Incident",
-        r.incident_id
-    )
-
-    c2.metric(
-        "Severity",
-        r.severity
-    )
-
-    c3.metric(
-        "Status",
-        r.status
-    )
-
-    c4.metric(
-        "Team",
-        r.assigned_team
-    )
+    c1.metric("Incident", r.incident_id)
+    c2.metric("Severity", r.severity)
+    c3.metric("Status", r.status)
+    c4.metric("Team", r.assigned_team)
 
     st.info(
         f"**Application:** {r.application}\n\n"
@@ -3556,9 +4659,7 @@ def incident360():
                 "No linked records yet."
             )
 
-    st.subheader(
-        "📜 Related Audit"
-    )
+    st.subheader("📜 Related Audit")
 
     d = pd.read_sql_query(
         """
@@ -3591,20 +4692,22 @@ def incident360():
 
 
 # =========================================================
-# AUDIT
+# AUDIT TRAIL
 # =========================================================
 
 def audit_page():
 
-    st.header(
-        "📜 Audit Trail"
-    )
+    st.header("📜 Audit Trail")
 
     d = pd.read_sql_query(
         """
         SELECT
+            activity_id AS 'Activity ID',
             activity_type AS 'Activity Type',
-            reference_id AS 'Reference ID',
+            COALESCE(
+                reference_id,
+                'General Investigation'
+            ) AS 'Reference ID',
             action AS Action,
             details AS Details,
             activity_time AS 'Activity Time'
@@ -3617,62 +4720,64 @@ def audit_page():
     c1, c2, c3, c4 = st.columns(4)
 
     c1.metric(
-        "Total",
+        "Total Activities",
         len(d)
     )
 
     c2.metric(
         "Incidents",
         count(
-            "SELECT COUNT(*) FROM audit_logs "
-            "WHERE activity_type='Incident'"
+            """
+            SELECT COUNT(*)
+            FROM audit_logs
+            WHERE activity_type='Incident'
+            """
         )
     )
 
     c3.metric(
-        "Investigations",
+        "SQL Investigations",
         count(
             """
             SELECT COUNT(*)
             FROM audit_logs
-            WHERE activity_type IN (
-                'SQL Investigation',
-                'Alert Investigation',
-                'RCA'
-            )
+            WHERE activity_type='SQL Investigation'
             """
         )
     )
 
     c4.metric(
-        "Operations",
+        "Other Activities",
         count(
             """
             SELECT COUNT(*)
             FROM audit_logs
-            WHERE activity_type IN (
-                'Release',
-                'Support Request',
-                'Communication',
-                'Daily Log',
-                'Shift Handover'
-            )
+            WHERE activity_type NOT IN
+            ('Incident','SQL Investigation')
             """
         )
     )
 
-    if not d.empty:
+    st.subheader("🔎 Activity Filter")
 
-        typ = st.selectbox(
-            "Filter",
-            ["All"] + sorted(
-                d["Activity Type"].unique().tolist()
-            )
-        )
-
-    else:
-
-        typ = "All"
+    typ = st.selectbox(
+        "Filter",
+        [
+            "All",
+            "Incident",
+            "SQL Investigation",
+            "Alert Investigation",
+            "RCA",
+            "Support Request",
+            "Communication",
+            "Release",
+            "Announcement",
+            "Daily Log",
+            "Shift Handover",
+            "Knowledge Base"
+        ],
+        key="audit_filter"
+    )
 
     if typ != "All":
 
@@ -3680,11 +4785,60 @@ def audit_page():
             d["Activity Type"] == typ
         ]
 
-    st.dataframe(
-        d,
-        use_container_width=True,
-        hide_index=True
-    )
+    if not d.empty:
+
+        st.dataframe(
+            d,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    else:
+
+        st.info(
+            f"No `{typ}` activities found."
+        )
+
+    if typ == "SQL Investigation":
+
+        st.divider()
+
+        st.subheader(
+            "🗄️ Detailed SQL Investigation History"
+        )
+
+        sql_history = pd.read_sql_query(
+            """
+            SELECT
+                query_id AS 'Query ID',
+                COALESCE(
+                    related_incident,
+                    'General Investigation'
+                ) AS 'Related Incident',
+                target_table AS 'Target Table',
+                sql_query AS 'SQL Query',
+                query_status AS Status,
+                rows_returned AS 'Rows / Affected',
+                executed_at AS 'Executed At'
+            FROM sql_query_history
+            ORDER BY query_id DESC
+            """,
+            conn
+        )
+
+        if not sql_history.empty:
+
+            st.dataframe(
+                sql_history,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            st.info(
+                "No SQL investigation history available."
+            )
 
 
 # =========================================================
@@ -3693,9 +4847,7 @@ def audit_page():
 
 def reports():
 
-    st.header(
-        "📈 Support Metrics & Reports"
-    )
+    st.header("📈 Support Metrics & Reports")
 
     metrics = [
         (
@@ -3749,9 +4901,7 @@ def reports():
             count(sql)
         )
 
-    st.subheader(
-        "🚨 Incident Severity"
-    )
+    st.subheader("🚨 Incident Severity")
 
     d = pd.read_sql_query(
         """
@@ -3782,9 +4932,7 @@ def reports():
             "No incident severity data available."
         )
 
-    st.subheader(
-        "📊 Incident Status"
-    )
+    st.subheader("📊 Incident Status")
 
     d = pd.read_sql_query(
         """
@@ -3809,9 +4957,7 @@ def reports():
             "No incident status data available."
         )
 
-    st.subheader(
-        "⏱️ SLA Performance"
-    )
+    st.subheader("⏱️ SLA Performance")
 
     s = pd.read_sql_query(
         """
@@ -3836,9 +4982,7 @@ def reports():
             "No SLA data available."
         )
 
-    st.subheader(
-        "🚀 Release Performance"
-    )
+    st.subheader("🚀 Release Performance")
 
     d = pd.read_sql_query(
         """
@@ -3863,9 +5007,7 @@ def reports():
             "No release data available."
         )
 
-    st.subheader(
-        "💳 Payment Health"
-    )
+    st.subheader("💳 Payment Health")
 
     d = pd.read_sql_query(
         """
@@ -4004,6 +5146,6 @@ st.divider()
 
 st.caption(
     "MOL CargoFlow • Production-like Application Support workflow • "
-    "Incident → Alert → Primary Analysis → RCA → Release/Patch → "
+    "Incident → Alert → SQL Investigation → RCA → Release/Patch → "
     "Communication → Handover → Audit"
 )
