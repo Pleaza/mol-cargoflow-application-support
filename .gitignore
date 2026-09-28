@@ -3,4 +3,7 @@ __pycache__/
 cargo_flow.db
 .env
 .venv/
-venv/
+venv/mol_cargoflow.db
+mol_sql_practice.db
+mol_cargoflow.db
+mol_sql_practice.db
